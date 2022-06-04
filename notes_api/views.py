@@ -15,7 +15,8 @@ from notes_api import serializers, permissions, filters
 
 
 class ListNoteAPIView(APIView):
-    permission_classes = (IsAuthenticated, permissions.EditNotePermission)
+    """вывод всех "разрешенных" объектов"""
+    permission_classes = (IsAuthenticated, permissions.EditPublicNotePermission)
     filter_backends = [DjangoFilterBackend]
     filtertodo = filters.FilterToDoList
 
@@ -34,7 +35,10 @@ class ListNoteAPIView(APIView):
 
 
 class OneNoteAPIView(APIView):
-    permission_classes = (IsAuthenticated, permissions.EditNotePermission)
+    """
+    вывод одного "разрешенного" объекта, с возможностью удаления, изменения
+    """
+    permission_classes = (IsAuthenticated, )
 
     def get(self, request: Request, pk) -> Response:
         queryset = get_object_or_404(Note, pk=pk)
@@ -66,9 +70,12 @@ class OneNoteAPIView(APIView):
 
 
 class NotesListCreateAPIView(generics.ListCreateAPIView):
+    """
+    просмотр только записей автора
+    """
     queryset = Note.objects.all()
     serializer_class = serializers.NotesSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = (IsAuthenticated, permissions.EditNotePermission)
 
     filter_backends = [DjangoFilterBackend]
     filtertodo = filters.FilterToDoList
@@ -87,7 +94,7 @@ class PublicNotesListAPIView(generics.ListAPIView):
     """
     queryset = Note.objects.all()
     serializer_class = serializers.NotesSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = (IsAuthenticated, permissions.EditPublicNotePermission)
 
     def get_queryset(self):
         queryset = super().get_queryset()

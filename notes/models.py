@@ -26,3 +26,7 @@ class Note(models.Model):
     up_to = models.DateTimeField(default=for_date_plus_one, verbose_name='Срок исполнения`')
     status = models.IntegerField(default=NoteStatus.ACTIVE, choices=NoteStatus.choices, verbose_name='Статус выполнения')
     author = models.ForeignKey(User, on_delete=models.CASCADE, verbose_name='Автор')
+
+    def __str__(self):
+        return f'Заметка номер {self.id}'
+

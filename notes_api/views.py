@@ -5,6 +5,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework import status
 from rest_framework import generics
 from django_filters.rest_framework import DjangoFilterBackend
+from django_filters import rest_framework as filters
 
 from django.db.models import QuerySet
 
@@ -12,6 +13,20 @@ from django.shortcuts import get_object_or_404
 
 from notes.models import Note
 from notes_api import serializers, permissions, filters
+
+def _check_permission_auth(request: Request, pk):
+    note = get_object_or_404(Note, pk=pk)
+    serializer = serializers.NotesSerializer(instance=note, data=request.data)
+    if note.author != request.user:
+        return Response(serializer.data, status.HTTP_403_FORBIDDEN)
+    return Response(serializer.data)
+
+def _check_permission_public(request: Request, pk):
+    note = get_object_or_404(Note, pk=pk)
+    serializer = serializers.NotesSerializer(instance=note, data=request.data)
+    if note.is_public != 1:
+        return Response(status.HTTP_404_NOT_FOUND)
+    return Response(serializer.data)
 
 
 class ListNoteAPIView(APIView):
@@ -36,21 +51,27 @@ class ListNoteAPIView(APIView):
 
 class OneNoteAPIView(APIView):
     """
-    вывод одного "разрешенного" объекта, с возможностью удаления, изменения
+    осуществляется вывод объекта по ключу, проводится проверка на авторство,
+    если не автор - проверка на публичность. Читать непубличные записи другого пользователя нельзя.
+    Удалять записи другого пользователя нельзя (несмотря на публичность)
     """
     permission_classes = (IsAuthenticated, )
 
     def get(self, request: Request, pk) -> Response:
         queryset = get_object_or_404(Note, pk=pk)
         serializer = serializers.NotesSerializer(instance=queryset)
+        if queryset.author != request.user:
+            if queryset.is_public != 1:
+                return Response(status.HTTP_404_NOT_FOUND)
         return Response(serializer.data)
 
     def put(self, request: Request, pk) -> Response:
-        note = get_object_or_404(Note, pk=pk)
-        serializer = serializers.NotesSerializer(instance=note, data=request.data)
-        if serializer.is_valid() and note.author == request.user:
-            serializer.save(author=request.user)
-            return Response(serializer.data, status.HTTP_200_OK)
+        queryset = get_object_or_404(Note, pk=pk)
+        serializer = serializers.NotesSerializer(instance=queryset, data=request.data)
+        if queryset.author != request.user:
+            if serializer.is_valid():
+                serializer.save()
+                return Response(serializer.data, status.HTTP_200_OK)
         else:
             return Response(status.HTTP_400_BAD_REQUEST)
 
@@ -58,13 +79,13 @@ class OneNoteAPIView(APIView):
         return self.put(request, pk)
 
     def delete(self, request: Request, pk) -> Response:
-        note = get_object_or_404(Note, pk=pk)
-        serializer = serializers.NotesSerializer(instance=note, data=request.data)
-        if serializer.is_valid() and note.author == request.user:
-            serializer.save(author=request.user)
-            note.delete()
-            note.save()
-            return Response(serializer.data, status.HTTP_200_OK)
+        queryset = get_object_or_404(Note, pk=pk)
+        serializer = serializers.NotesSerializer(instance=queryset, data=request.data)
+        if queryset.author != request.user:
+            if serializer.is_valid():
+                serializer.save(author=request.user)
+                queryset.delete()
+                return Response(serializer.data, status.HTTP_200_OK)
         else:
             return Response(status.HTTP_400_BAD_REQUEST)
 
@@ -78,7 +99,7 @@ class NotesListCreateAPIView(generics.ListCreateAPIView):
     permission_classes = (IsAuthenticated, permissions.EditNotePermission)
 
     filter_backends = [DjangoFilterBackend]
-    filtertodo = filters.FilterToDoList
+    filterset_class = filters.FilterToDoList
 
     def get_queryset(self):
         queryset = super().get_queryset()
@@ -107,17 +128,7 @@ class PublicNotesListAPIView(generics.ListAPIView):
 #     permission_classes = [IsAuthenticated]
 
 
-    # def filter_queryset(self, queryset):
-    #     query_params = serializers.QueryParamsNotesFilterImpSerializer(data=self.request.query_params)
-    #     query_params.is_valid(raise_exception=True)
-    #
-    #     list_importance = query_params.data.get('importance')
-    #
-    #     if list_importance:
-    #         queryset = queryset.filter(importance__inn=query_params.data['importance'])
-    #     return queryset
-    #     # is_public = self.request.query_params.get('is_public')
-    #     # for i in queryset:
+
 
 
 

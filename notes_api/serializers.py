@@ -27,17 +27,17 @@ class NotesSerializer(serializers.ModelSerializer):
 
 
 # Попробовать вывести фильтры таки образом. Не загружен
-# class QueryParamsNotesFilterImpSerializer(serializers.Serializer):
-#     importance = serializers.ListField(child=serializers.BooleanField,
-#                                        required=False)
-#
-#
-# class QueryParamsNotesFilterPubSerializer(serializers.Serializer):
-#     is_public = serializers.ListField(child=serializers.BooleanField,
-#                                       required=False)
-#
-#
-# class QueryParamsNotesFilterStatSerializer(serializers.Serializer):
-#     status = serializers.ListField(child=serializers.ChoiceField(choices=Note.status.numerator),
-#                                    required=False)
+class QueryParamsNotesFilterImpSerializer(serializers.Serializer):
+    importance = serializers.ListField(child=serializers.BooleanField(),
+                                       required=False)
+
+
+class QueryParamsNotesFilterPubSerializer(serializers.Serializer):
+    is_public = serializers.ListField(child=serializers.BooleanField(),
+                                      required=False)
+
+
+class QueryParamsNotesFilterStatSerializer(serializers.Serializer):
+    status = serializers.ListField(child=serializers.IntegerField(),
+                                   required=False)
 

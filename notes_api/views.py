@@ -68,7 +68,7 @@ class OneNoteAPIView(APIView):
     def put(self, request: Request, pk) -> Response:
         queryset = get_object_or_404(Note, pk=pk)
         serializer = serializers.NotesSerializer(instance=queryset, data=request.data)
-        if queryset.author != request.user:
+        if queryset.author == request.user:
             if serializer.is_valid():
                 serializer.save()
                 return Response(serializer.data, status.HTTP_200_OK)
@@ -76,12 +76,16 @@ class OneNoteAPIView(APIView):
             return Response(status.HTTP_400_BAD_REQUEST)
 
     def patch(self, request: Request, pk) -> Response:
-        return self.put(request, pk)
+        queryset = get_object_or_404(Note, pk=pk)
+        if queryset.author == request.user:
+            return self.put(request, pk)
+        else:
+            return Response(status.HTTP_403_FORBIDDEN)
 
     def delete(self, request: Request, pk) -> Response:
         queryset = get_object_or_404(Note, pk=pk)
         serializer = serializers.NotesSerializer(instance=queryset, data=request.data)
-        if queryset.author != request.user:
+        if queryset.author == request.user:
             if serializer.is_valid():
                 serializer.save(author=request.user)
                 queryset.delete()

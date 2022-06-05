@@ -176,6 +176,8 @@ class TestOneNoteAPIView(APITestCase):
 
 
 
+
+
 # Вспомогательное для проверки резальтатов во время написания:
         # responce_data = resp.data
         # expected_data = []

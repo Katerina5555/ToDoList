@@ -19,8 +19,7 @@ from notes_api import views
 urlpatterns = [
     path('notes/', views.ListNoteAPIView.as_view()),
     path('note/<int:pk>', views.OneNoteAPIView.as_view()),
-    path('allnotes/', views.ListNoteAPIView.as_view()),
     path('public/', views.PublicNotesListAPIView.as_view()),
-    path('filterau/', views.NotesListCreateAPIView.as_view()),
+    path('authnotes/', views.NotesListCreateAPIView.as_view()),
 
 ]

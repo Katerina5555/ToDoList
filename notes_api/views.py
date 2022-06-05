@@ -14,31 +14,37 @@ from django.shortcuts import get_object_or_404
 from notes.models import Note
 from notes_api import serializers, permissions, filters
 
-def _check_permission_auth(request: Request, pk):
-    note = get_object_or_404(Note, pk=pk)
-    serializer = serializers.NotesSerializer(instance=note, data=request.data)
-    if note.author != request.user:
-        return Response(serializer.data, status.HTTP_403_FORBIDDEN)
-    return Response(serializer.data)
 
-def _check_permission_public(request: Request, pk):
-    note = get_object_or_404(Note, pk=pk)
-    serializer = serializers.NotesSerializer(instance=note, data=request.data)
-    if note.is_public != 1:
-        return Response(status.HTTP_404_NOT_FOUND)
-    return Response(serializer.data)
+# def _check_permission_auth(request: Request, pk):
+#     note = get_object_or_404(Note, pk=pk)
+#     serializer = serializers.NotesSerializer(instance=note, data=request.data)
+#     if note.author != request.user:
+#         return Response(serializer.data, status.HTTP_403_FORBIDDEN)
+#     return Response(serializer.data)
+#
+#
+# def _check_permission_public(request: Request, pk):
+#     note = get_object_or_404(Note, pk=pk)
+#     serializer = serializers.NotesSerializer(instance=note, data=request.data)
+#     if note.is_public != 1:
+#         return Response(status.HTTP_404_NOT_FOUND)
+#     return Response(serializer.data)
 
 
 class ListNoteAPIView(APIView):
-    """вывод всех "разрешенных" объектов"""
-    permission_classes = (IsAuthenticated, permissions.EditPublicNotePermission)
-    filter_backends = [DjangoFilterBackend]
-    filtertodo = filters.FilterToDoList
+    """Выводятся все объекты.
+    Просматривать их может только approved_user (задается в классе)"""
+    _approved_user = 'admin'
 
     def get(self, request: Request) -> Response:
-        notes_list = Note.objects.all()
-        serializer = serializers.NotesSerializer(instance=notes_list, many=True)
-        return Response(serializer.data)
+        if str(request.user) == ListNoteAPIView._approved_user:
+            notes_list = Note.objects.all()
+            serializer = serializers.NotesSerializer(instance=notes_list, many=True)
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        else:
+            return Response(f'Текущий пользователь: {str(request.user)}. '
+                            f'Просмотр возможен только пользователем {ListNoteAPIView._approved_user}'
+                            , status=status.HTTP_403_FORBIDDEN)
 
     def post(self, request: Request) -> Response:
         serializer = serializers.NotesSerializer(data=request.data)
@@ -51,52 +57,48 @@ class ListNoteAPIView(APIView):
 
 class OneNoteAPIView(APIView):
     """
-    осуществляется вывод объекта по ключу, проводится проверка на авторство,
+    Осуществляется вывод объекта по ключу, проводится проверка на авторство,
     если не автор - проверка на публичность. Читать непубличные записи другого пользователя нельзя.
     Удалять записи другого пользователя нельзя (несмотря на публичность)
     """
-    permission_classes = (IsAuthenticated, )
+    permission_classes = (IsAuthenticated, permissions.EditNotePermission)
 
     def get(self, request: Request, pk) -> Response:
         queryset = get_object_or_404(Note, pk=pk)
         serializer = serializers.NotesSerializer(instance=queryset)
         if queryset.author != request.user:
             if queryset.is_public != 1:
-                return Response(status.HTTP_404_NOT_FOUND)
-        return Response(serializer.data)
+                return Response(status.HTTP_403_FORBIDDEN)
+        return Response(serializer.data, status.HTTP_200_OK)
 
     def put(self, request: Request, pk) -> Response:
-        queryset = get_object_or_404(Note, pk=pk)
-        serializer = serializers.NotesSerializer(instance=queryset, data=request.data)
-        if queryset.author == request.user:
-            if serializer.is_valid():
-                serializer.save()
-                return Response(serializer.data, status.HTTP_200_OK)
+        return self.partial_change(request, pk=pk, partial=False)
+
+    def partial_change(self, request:Request, pk: int, partial: bool) -> Response:
+        """Выполнение частичного или полного обновления полей"""
+        instance = get_object_or_404(Note, pk=pk)
+        serializer = serializers.NotesSerializer(instance=instance, data=self.request.data, partial=partial)
+        if serializer.is_valid(True) and instance.author == request.user:
+            serializer.save()
+            return Response(serializer.data, status.HTTP_200_OK)
         else:
-            return Response(status.HTTP_400_BAD_REQUEST)
+            return Response(serializer.errors, status.HTTP_403_FORBIDDEN)
 
     def patch(self, request: Request, pk) -> Response:
-        queryset = get_object_or_404(Note, pk=pk)
-        if queryset.author == request.user:
-            return self.put(request, pk)
-        else:
-            return Response(status.HTTP_403_FORBIDDEN)
+        return self.partial_change(request, pk=pk, partial=True)
 
-    def delete(self, request: Request, pk) -> Response:
+    def delete(self, request: Request, pk):
         queryset = get_object_or_404(Note, pk=pk)
-        serializer = serializers.NotesSerializer(instance=queryset, data=request.data)
         if queryset.author == request.user:
-            if serializer.is_valid():
-                serializer.save(author=request.user)
-                queryset.delete()
-                return Response(serializer.data, status.HTTP_200_OK)
+            queryset.delete()
+            return Response(status=status.HTTP_204_NO_CONTENT)
         else:
-            return Response(status.HTTP_400_BAD_REQUEST)
+            return Response(status=status.HTTP_403_FORBIDDEN)
 
 
 class NotesListCreateAPIView(generics.ListCreateAPIView):
     """
-    просмотр только записей автора
+    Просмотр всех записей автора
     """
     queryset = Note.objects.all()
     serializer_class = serializers.NotesSerializer
@@ -115,11 +117,11 @@ class NotesListCreateAPIView(generics.ListCreateAPIView):
 
 class PublicNotesListAPIView(generics.ListAPIView):
     """
-    просмотр только публичных записей
+    Просмотр только публичных записей
     """
     queryset = Note.objects.all()
     serializer_class = serializers.NotesSerializer
-    permission_classes = (IsAuthenticated, permissions.EditPublicNotePermission)
+    permission_classes = (IsAuthenticated, )
 
     def get_queryset(self):
         queryset = super().get_queryset()

@@ -131,7 +131,7 @@ class PublicNotesListAPIView(generics.ListAPIView):
 
 class FilterToDoListAPIView(generics.ListAPIView):
     queryset = Note.objects.all()
-    serializer_class = serializers.NotesSerializer
+    serializer_class = serializers.NoteForFilterSerializer
 
     def filter_queryset_importance(self, queryset):
         query_params = serializers.QueryParamsNotesFilterImpSerializer(data=self.request.query_params)
@@ -157,14 +157,3 @@ class FilterToDoListAPIView(generics.ListAPIView):
         if list_status:
             queryset = queryset.filter(importance__in=query_params.data['status'])
         return queryset
-
-
-
-
-
-
-
-
-
-
-

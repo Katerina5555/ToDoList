@@ -26,7 +26,12 @@ class NotesSerializer(serializers.ModelSerializer):
     #     return ret
 
 
-# Попробовать вывести фильтры таки образом. Не загружен
+class NoteForFilterSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Note
+        fields = "__all__"
+
+
 class QueryParamsNotesFilterImpSerializer(serializers.Serializer):
     importance = serializers.ListField(child=serializers.BooleanField(),
                                        required=False)

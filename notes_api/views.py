@@ -1,3 +1,4 @@
+import self as self
 from rest_framework.views import APIView
 from rest_framework.request import Request
 from rest_framework.response import Response
@@ -128,10 +129,36 @@ class PublicNotesListAPIView(generics.ListAPIView):
         return queryset.filter(is_public=True).order_by('-up_to', '-importance')
 
 
-# class FilterToDoListAPIView(generics.ListAPIView):
-#     queryset = Note.objects.all()
-#     serializer_class = serializers.NotesSerializer
-#     permission_classes = [IsAuthenticated]
+class FilterToDoListAPIView(generics.ListAPIView):
+    queryset = Note.objects.all()
+    serializer_class = serializers.NotesSerializer
+
+    def filter_queryset_importance(self, queryset):
+        query_params = serializers.QueryParamsNotesFilterImpSerializer(data=self.request.query_params)
+        query_params.is_valid(raise_exception=True)
+
+        list_importance = query_params.data.get('importance')
+        if list_importance:
+            queryset = queryset.filter(importance__in=query_params.data['importance'])
+        return queryset
+
+    def filter_queryset_public(self, queryset):
+        query_params = serializers.QueryParamsNotesFilterPubSerializer(data=self.request.query_params)
+        query_params.is_valid(raise_exception=True)
+        list_public = query_params.data.get('is_public')
+        if list_public:
+            queryset = queryset.filter(importance__in=query_params.data['is_public'])
+        return queryset
+
+    def filter_queryset_status(self, queryset):
+        query_params = serializers.QueryParamsNotesFilterStatSerializer(data=self.request.query_params)
+        query_params.is_valid(raise_exception=True)
+        list_status = query_params.data.get('status')
+        if list_status:
+            queryset = queryset.filter(importance__in=query_params.data['status'])
+        return queryset
+
+
 
 
 

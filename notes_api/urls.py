@@ -21,5 +21,6 @@ urlpatterns = [
     path('note/<int:pk>', views.OneNoteAPIView.as_view()),
     path('public/', views.PublicNotesListAPIView.as_view()),
     path('authnotes/', views.NotesListCreateAPIView.as_view()),
+    path('filters/', views.FilterToDoListAPIView.as_view()),
 
 ]
